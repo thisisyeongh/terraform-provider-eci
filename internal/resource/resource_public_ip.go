@@ -27,6 +27,8 @@ type ResourcePublicIpModel struct {
 	OrganizationId             types.String `tfsdk:"organization_id"`
 	DR                         types.Bool   `tfsdk:"dr"`
 	AttachedNetworkInterfaceId types.String `tfsdk:"attached_network_interface_id"`
+	PricingId                  types.String `tfsdk:"pricing_id"`
+	PricingType                types.String `tfsdk:"pricing_type"`
 	PoolId                     types.String `tfsdk:"pool_id"`
 	DrPoolId                   types.String `tfsdk:"dr_pool_id"`
 	Ip                         types.String `tfsdk:"ip"`
@@ -60,6 +62,8 @@ func resourcePublicIpGetResponseToPublicIpModel(
 	data.OrganizationId = types.StringValue(response.OrganizationId.String())
 	data.DR = types.BoolValue(response.DR)
 	data.AttachedNetworkInterfaceId = StringOrNull(response.AttachedNetworkInterfaceId)
+	data.PricingId = types.StringValue(response.PricingId.String())
+	data.PricingType = types.StringValue(response.PricingType)
 	data.PoolId = types.StringValue(response.PoolId.String())
 	data.DrPoolId = StringOrNull(response.DrPoolId)
 	data.Deleted = StringOrNull(response.Deleted)
@@ -133,6 +137,14 @@ func (r *ResourcePublicIp) Schema(
 				Required:      true,
 				PlanModifiers: []planmodifier.Bool{boolplanmodifier.RequiresReplace()},
 			},
+			"pricing_id": schema.StringAttribute{
+				Description: "id of pricing plan for the public IP",
+				Required:    true,
+			},
+			"pricing_type": schema.StringAttribute{
+				Description: "type of pricing plan (computed)",
+				Computed:    true,
+			},
 			"pool_id":    schema.StringAttribute{Computed: true},
 			"dr_pool_id": schema.StringAttribute{Computed: true},
 			"deleted": schema.StringAttribute{
@@ -194,7 +206,7 @@ func (r *ResourcePublicIp) Create(
 		return
 	}
 
-	response, err := r.client.PostPublicIp(plan.DR.ValueBool(), tags)
+	response, err := r.client.PostPublicIp(plan.PricingId.ValueString(), plan.DR.ValueBool(), tags)
 
 	if err != nil {
 		addResourceError(

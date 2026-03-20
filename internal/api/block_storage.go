@@ -26,6 +26,8 @@ type ResourceBlockStorageGetResponse struct {
 	Deleting           *time.Time        `json:"deleting,omitempty"`
 	Deleted            *time.Time        `json:"deleted,omitempty"`
 	Status             string            `json:"status"`
+	PricingId          uuid.UUID         `json:"pricing_id"`
+	PricingType        string            `json:"pricing_type"`
 }
 
 type ResourceBlockStoragePostResponse struct {
@@ -42,6 +44,7 @@ type ResourceBlockStorageDeleteResponse struct {
 
 func (api *APIClient) PostBlockStorage(
 	name string,
+	pricingId string,
 	imageId *string,
 	snapshotId *string,
 	sizeGiB int,
@@ -54,6 +57,7 @@ func (api *APIClient) PostBlockStorage(
 			"zone_id":         api.ZoneId,
 			"organization_id": api.OrganizationId,
 			"name":            name,
+			"pricing_id":      pricingId,
 			"image_id":        imageId,
 			"snapshot_id":     snapshotId,
 			"size_gib":        sizeGiB,

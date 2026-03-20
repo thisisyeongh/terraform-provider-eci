@@ -29,9 +29,25 @@ data "eci_instance_type" "m8" {
   name="M-8"
 }
 
+data "eci_pricing" "vm_pricing" {
+  name="M-8"
+  pricing_type="ondemand"
+}
+
+data "eci_pricing" "storage_pricing" {
+  name="Block Storage"
+  pricing_type="ondemand"
+}
+
+data "eci_pricing" "ip_pricing" {
+  name="Public IP"
+  pricing_type="ondemand"
+}
+
 resource "eci_virtual_machine" "my_virtual_machine2" {
   name="terraform-test-vm-2"
   instance_type_id="${data.eci_instance_type.m8.id}"
+  pricing_id="${data.eci_pricing.vm_pricing.id}"
   always_on=false
   username="elice"
   password="secretpassword1!"
@@ -61,6 +77,7 @@ resource "eci_block_storage" "my_block_storage2" {
   name="terraform-test-2"
   dr=false
   size_gib=40
+  pricing_id="${data.eci_pricing.storage_pricing.id}"
   snapshot_id="a72b896d-7a51-4914-b0f0-c094c3b69ab0"
   tags = {
     "created-by": "terraform"
@@ -82,6 +99,7 @@ resource "eci_public_ip" "my_public_ip2" {
     "${eci_network_interface.my_network_interface_two.id}"
   )
   dr=false
+  pricing_id="${data.eci_pricing.ip_pricing.id}"
   tags = {
     "created-by": "terraform"
   }

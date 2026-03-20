@@ -25,6 +25,8 @@ type ResourceVirtualMachineGetResponse struct {
 	Name           string            `json:"name"`
 	Username       string            `json:"username"`
 	OnInitScript   string            `json:"on_init_script"`
+	PricingId      uuid.UUID         `json:"pricing_id"`
+	PricingType    string            `json:"pricing_type"`
 }
 
 type ResourceVirtualMachinePostResponse struct {
@@ -50,6 +52,7 @@ func (api *APIClient) GetVirtualMachine(id string) (*ResourceVirtualMachineGetRe
 
 func (api *APIClient) PostVirtualMachine(
 	instanceTypeId string,
+	pricingId string,
 	name string,
 	alwaysOn bool,
 	DR bool,
@@ -64,6 +67,7 @@ func (api *APIClient) PostVirtualMachine(
 			"zone_id":          api.ZoneId,
 			"organization_id":  api.OrganizationId,
 			"instance_type_id": instanceTypeId,
+			"pricing_id":       pricingId,
 			"name":             name,
 			"always_on":        alwaysOn,
 			"dr":               DR,
@@ -80,6 +84,7 @@ func (api *APIClient) PostVirtualMachine(
 func (api *APIClient) PatchVirtualMachine(
 	id string,
 	instanceTypeIdPtr *string,
+	pricingIdPtr *string,
 	namePtr *string,
 	alwaysOnPtr *bool,
 	tagsPtr *map[string]string,
@@ -87,6 +92,7 @@ func (api *APIClient) PatchVirtualMachine(
 	params := map[string]interface{}{}
 	setIfNotNil(params, "name", namePtr)
 	setIfNotNil(params, "instance_type_id", instanceTypeIdPtr)
+	setIfNotNil(params, "pricing_id", pricingIdPtr)
 	setIfNotNil(params, "always_on", alwaysOnPtr)
 	setIfNotNil(params, "tags", tagsPtr)
 
