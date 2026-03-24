@@ -9,6 +9,7 @@ terraform {
 resource "eci_virtual_machine" "virtual_machine" {
   name             = var.name
   instance_type_id = var.instance_type_id
+  pricing_id       = var.vm_pricing_id
   always_on        = var.always_on
   username         = var.username
   password         = var.password
@@ -31,6 +32,7 @@ resource "eci_block_storage" "block_storage" {
   name                = "${var.name}-block-stroage"
   dr                  = var.dr
   size_gib            = var.block_storage_size
+  pricing_id          = var.storage_pricing_id
   image_id            = var.block_storage_image_id
   tags                = var.tags
 }
@@ -45,6 +47,7 @@ resource "eci_network_interface" "network_interface" {
 
 resource "eci_public_ip" "public_ip" {
   attached_network_interface_id = eci_network_interface.network_interface.id
+  pricing_id                    = var.ip_pricing_id
   dr                            = var.dr
   tags                          = var.tags
 }

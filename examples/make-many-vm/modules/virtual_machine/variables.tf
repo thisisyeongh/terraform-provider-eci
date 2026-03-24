@@ -2,6 +2,18 @@ variable "instance_type_id" {
   type = string
 }
 
+variable "vm_pricing_id" {
+  type = string
+}
+
+variable "storage_pricing_id" {
+  type = string
+}
+
+variable "ip_pricing_id" {
+  type = string
+}
+
 variable "block_storage_image_id" {
   type = string
 }

@@ -167,6 +167,9 @@ func (p *EliceCloudProvider) DataSources(_ context.Context) []func() datasource.
 			return ds.NewInstanceTypeDataSource()
 		},
 		func() datasource.DataSource {
+			return ds.NewPricingDataSource()
+		},
+		func() datasource.DataSource {
 			return ds.NewRegionDataSource()
 		},
 		func() datasource.DataSource {

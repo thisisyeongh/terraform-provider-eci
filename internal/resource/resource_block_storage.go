@@ -43,6 +43,8 @@ type ResourceBlockStorageModel struct {
 	SnapshotId         types.String `tfsdk:"snapshot_id"`
 	SizeGib            types.Int64  `tfsdk:"size_gib"`
 	DR                 types.Bool   `tfsdk:"dr"`
+	PricingId          types.String `tfsdk:"pricing_id"`
+	PricingType        types.String `tfsdk:"pricing_type"`
 	LastSyncedSnapshot types.String `tfsdk:"last_synced_snapshot"`
 	Assigned           types.String `tfsdk:"assigned"`
 	Prepared           types.String `tfsdk:"prepared"`
@@ -75,6 +77,8 @@ func resourceBlockStorageGetResponseToBlockStorageModel(
 	data.SnapshotId = StringOrNull(response.SnapshotId)
 	data.SizeGib = types.Int64Value(int64(response.SizeGib))
 	data.DR = types.BoolValue(response.DR)
+	data.PricingId = types.StringValue(response.PricingId.String())
+	data.PricingType = types.StringValue(response.PricingType)
 	data.LastSyncedSnapshot = StringValOrNull(response.LastSyncedSnapshot)
 	data.Assigned = StringOrNull(response.Assigned)
 	data.Prepared = StringOrNull(response.Prepared)
@@ -161,6 +165,14 @@ func (r *ResourceBlockStorage) Schema(
 				Required:      true,
 				PlanModifiers: []planmodifier.Bool{boolplanmodifier.RequiresReplace()},
 			},
+			"pricing_id": schema.StringAttribute{
+				Description: "id of pricing plan for the block storage",
+				Required:    true,
+			},
+			"pricing_type": schema.StringAttribute{
+				Description: "type of pricing plan (computed)",
+				Computed:    true,
+			},
 			"last_synced_snapshot": schema.StringAttribute{
 				Description: "the last time when the block storage is synced with the DR zone",
 				Computed:    true,
@@ -238,6 +250,7 @@ func (r *ResourceBlockStorage) Create(
 
 	response, err := r.client.PostBlockStorage(
 		plan.Name.ValueString(),
+		plan.PricingId.ValueString(),
 		imageIdPtr,
 		plan.SnapshotId.ValueStringPointer(),
 		int(plan.SizeGib.ValueInt64()),
@@ -254,12 +267,58 @@ func (r *ResourceBlockStorage) Create(
 
 	tflog.Trace(ctx, fmt.Sprintf("created a block storage: %s", id))
 
+	getResponse, err := r.client.GetBlockStorage(id)
+	if err != nil {
+		addResourceError(&resp.Diagnostics, "failed to get block storage", id, err)
+		return
+	}
+
+	if getResponse.Status != "prepared" {
+		tflog.Info(ctx, fmt.Sprintf("waiting for block storage (%s) to be prepared", id))
+		_, diags := waitStatus(
+			func() (*string, error) {
+				getResponse, err := r.client.GetBlockStorage(id)
+				if err != nil {
+					return nil, err
+				}
+				return &getResponse.Status, nil
+			},
+			[]string{"prepared"},
+			10,
+		)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			getResponse, _ = r.client.GetBlockStorage(id)
+			if getResponse != nil {
+				resourceBlockStorageGetResponseToBlockStorageModel(ctx, getResponse, &plan)
+				resp.State.Set(ctx, &plan)
+			}
+			return
+		}
+	}
+
+	getResponse, err = r.client.GetBlockStorage(id)
+	if err != nil {
+		addResourceError(&resp.Diagnostics, "failed to get block storage after wait", id, err)
+		return
+	}
+	resourceBlockStorageGetResponseToBlockStorageModel(ctx, getResponse, &plan)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
 	if !plan.AttachedMachineId.IsNull() {
 		var attachedMachineId = plan.AttachedMachineId.ValueStringPointer()
 		_, err := r.client.PatchBlockStorage(id, nil, &attachedMachineId, nil)
 
 		if err != nil {
-			addResourceError(&resp.Diagnostics, "failed to patch block storage", id, err)
+			addResourceError(
+				&resp.Diagnostics,
+				"failed to patch block storage (attach to VM)",
+				id,
+				err,
+			)
 			return
 		}
 
@@ -269,7 +328,7 @@ func (r *ResourceBlockStorage) Create(
 		)
 	}
 
-	getResponse, err := r.client.GetBlockStorage(id)
+	getResponse, err = r.client.GetBlockStorage(id)
 
 	if err != nil {
 		addResourceError(&resp.Diagnostics, "failed to get block storage", id, err)
@@ -284,23 +343,6 @@ func (r *ResourceBlockStorage) Create(
 		return
 	}
 
-	if getResponse.Status == "prepared" {
-		tflog.Info(ctx, fmt.Sprintf("block storage (%s) is prepared", id))
-		return
-	}
-
-	_, diags := waitStatus(
-		func() (*string, error) {
-			getResponse, err := r.client.GetBlockStorage(id)
-			if err != nil {
-				return nil, err
-			}
-			return &getResponse.Status, nil
-		},
-		[]string{"prepared"},
-		10,
-	)
-	resp.Diagnostics.Append(diags...)
 }
 
 func (r *ResourceBlockStorage) Read(
@@ -318,7 +360,7 @@ func (r *ResourceBlockStorage) Read(
 	response, err := r.client.GetBlockStorage(id)
 
 	if err != nil {
-		addResourceError(&resp.Diagnostics, "failed to create block stroage", id, err)
+		addResourceError(&resp.Diagnostics, "failed to get block storage", id, err)
 		return
 	}
 
@@ -348,7 +390,7 @@ func (r *ResourceBlockStorage) Update(
 
 			_, err := r.client.PatchBlockStorage(id, nil, &nilAttachedMachineId, nil)
 			if err != nil {
-				addResourceError(&resp.Diagnostics, "failed to detach block stroage", id, err)
+				addResourceError(&resp.Diagnostics, "failed to detach block storage", id, err)
 				return
 			}
 
@@ -382,7 +424,7 @@ func (r *ResourceBlockStorage) Update(
 	_, err := r.client.PatchBlockStorage(id, namePtr, attachedMachineIdPtr, tagsPtr)
 
 	if err != nil {
-		addResourceError(&resp.Diagnostics, "failed to patch block stroage", id, err)
+		addResourceError(&resp.Diagnostics, "failed to patch block storage", id, err)
 		return
 	}
 
@@ -427,7 +469,7 @@ func (r *ResourceBlockStorage) Delete(
 
 		if virtualMachine.Status != "idle" {
 			resp.Diagnostics.AddError(
-				"Invalid virtual machien status",
+				"Invalid virtual machine status",
 				"block storage is attached to a non-idle virtual machine. For safety, the practitioner has to kill the virtual machine allocation",
 			)
 			return

@@ -22,6 +22,8 @@ type ResourcePublicIpGetResponse struct {
 	Status                     string            `json:"status"`
 	Ip                         string            `json:"ip"`
 	DrIp                       *string           `json:"dr_ip,omitempty"`
+	PricingId                  uuid.UUID         `json:"pricing_id"`
+	PricingType                string            `json:"pricing_type"`
 }
 
 type ResourcePublicIpPostResponse struct {
@@ -62,13 +64,14 @@ func (api *APIClient) GetPublicIps(
 }
 
 func (api *APIClient) PostPublicIp(
-	dr bool, tags map[string]string,
+	pricingId string, dr bool, tags map[string]string,
 ) (*ResourcePublicIpPostResponse, error) {
 	resp, err := api.restyClient.R().
 		SetResult(&ResourcePublicIpPostResponse{}).
 		SetBody(map[string]interface{}{
 			"zone_id":         api.ZoneId,
 			"organization_id": api.OrganizationId,
+			"pricing_id":      pricingId,
 			"dr":              dr,
 			"tags":            tags,
 		}).

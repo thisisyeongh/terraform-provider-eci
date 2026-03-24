@@ -34,6 +34,8 @@ type ResourceVirtualMachineModel struct {
 	ZoneId         types.String `tfsdk:"zone_id"`
 	OrganizationId types.String `tfsdk:"organization_id"`
 	InstanceTypeId types.String `tfsdk:"instance_type_id"`
+	PricingId      types.String `tfsdk:"pricing_id"`
+	PricingType    types.String `tfsdk:"pricing_type"`
 
 	AlwaysOn     types.Bool   `tfsdk:"always_on"`
 	Name         types.String `tfsdk:"name"`
@@ -66,6 +68,8 @@ func resourceVirtualMachineGetResponseToVirtualMachineModel(
 	data.ZoneId = types.StringValue(response.ZoneId.String())
 	data.OrganizationId = types.StringValue(response.OrganizationId.String())
 	data.InstanceTypeId = types.StringValue(response.InstanceTypeId.String())
+	data.PricingId = types.StringValue(response.PricingId.String())
+	data.PricingType = types.StringValue(response.PricingType)
 	data.AlwaysOn = types.BoolValue(response.AlwaysOn)
 	data.DR = types.BoolValue(response.DR)
 	data.Allocated = StringOrNull(response.Allocated)
@@ -128,6 +132,14 @@ func (r *ResourceVirtualMachine) Schema(
 				Required:    true,
 				Computed:    false,
 				Optional:    false,
+			},
+			"pricing_id": schema.StringAttribute{
+				Description: "id of pricing plan for the virtual machine",
+				Required:    true,
+			},
+			"pricing_type": schema.StringAttribute{
+				Description: "type of pricing plan (computed)",
+				Computed:    true,
 			},
 			"always_on": schema.BoolAttribute{
 				Description: "whether to automatically restart the virtual machine when migrated to DR",
@@ -209,6 +221,7 @@ func (r *ResourceVirtualMachine) Create(
 
 	response, err := r.client.PostVirtualMachine(
 		plan.InstanceTypeId.ValueString(),
+		plan.PricingId.ValueString(),
 		plan.Name.ValueString(),
 		plan.AlwaysOn.ValueBool(),
 		plan.DR.ValueBool(),
@@ -295,6 +308,11 @@ func (r *ResourceVirtualMachine) Update(
 		instanceTypeIdPtr = plan.InstanceTypeId.ValueStringPointer()
 	}
 
+	var pricingIdPtr *string = nil
+	if !plan.PricingId.Equal(state.PricingId) {
+		pricingIdPtr = plan.PricingId.ValueStringPointer()
+	}
+
 	var tagsPtr *map[string]string = nil
 	if !plan.Tags.Equal(state.Tags) {
 		tags := map[string]string{}
@@ -308,7 +326,7 @@ func (r *ResourceVirtualMachine) Update(
 
 	id := state.Id.ValueString()
 	_, err := r.client.PatchVirtualMachine(
-		id, instanceTypeIdPtr, namePtr, alwaysOnPtr, tagsPtr,
+		id, instanceTypeIdPtr, pricingIdPtr, namePtr, alwaysOnPtr, tagsPtr,
 	)
 
 	if err != nil {
@@ -404,7 +422,7 @@ func (r *ResourceVirtualMachine) Delete(
 
 	if state.AlwaysOn.ValueBool() {
 		var falsePtr = false
-		_, err = r.client.PatchVirtualMachine(id, nil, nil, &falsePtr, nil)
+		_, err = r.client.PatchVirtualMachine(id, nil, nil, nil, &falsePtr, nil)
 		if err != nil {
 			addResourceError(
 				&resp.Diagnostics,
