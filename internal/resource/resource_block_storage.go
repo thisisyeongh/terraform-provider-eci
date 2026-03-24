@@ -302,8 +302,10 @@ func (r *ResourceBlockStorage) Create(
 		addResourceError(&resp.Diagnostics, "failed to get block storage after wait", id, err)
 		return
 	}
-	resourceBlockStorageGetResponseToBlockStorageModel(ctx, getResponse, &plan)
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+
+	state := plan
+	resourceBlockStorageGetResponseToBlockStorageModel(ctx, getResponse, &state)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
