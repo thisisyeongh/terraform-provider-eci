@@ -290,8 +290,9 @@ func (r *ResourceBlockStorage) Create(
 		if resp.Diagnostics.HasError() {
 			getResponse, _ = r.client.GetBlockStorage(id)
 			if getResponse != nil {
-				resourceBlockStorageGetResponseToBlockStorageModel(ctx, getResponse, &plan)
-				resp.State.Set(ctx, &plan)
+				state := plan
+				resourceBlockStorageGetResponseToBlockStorageModel(ctx, getResponse, &state)
+				resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 			}
 			return
 		}
@@ -337,9 +338,9 @@ func (r *ResourceBlockStorage) Create(
 		return
 	}
 
-	resourceBlockStorageGetResponseToBlockStorageModel(ctx, getResponse, &plan)
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+	state = plan
+	resourceBlockStorageGetResponseToBlockStorageModel(ctx, getResponse, &state)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 
 	if resp.Diagnostics.HasError() {
 		return
