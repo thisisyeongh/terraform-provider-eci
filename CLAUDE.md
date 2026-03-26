@@ -72,5 +72,5 @@ Elice Cloud Infrastructure (ECI) Terraform Provider. Built with Go 1.25, terrafo
 
 - Local: create `.env.test` (gitignored) with required env vars, then `source .env.test && make testacc`
 - CI: store env vars in GitHub Secrets (Settings > Secrets and variables > Actions)
-- If pricing plan names or other infrastructure names change, the corresponding CI secrets must be updated accordingly
+- If pricing plan names or other infrastructure names change, update `.github/workflows/test.yml` and `.env.test.example`
 - See `.env.test.example` for the full list of required variables
