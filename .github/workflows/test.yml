@@ -34,18 +34,20 @@ jobs:
         run: make testacc
         env:
           TF_ACC: "1"
+          # Sensitive — stored in GitHub Secrets
           ECI_API_ACCESS_TOKEN: ${{ secrets.ECI_API_ACCESS_TOKEN }}
           ECI_API_ENDPOINT: ${{ secrets.ECI_API_ENDPOINT }}
           ECI_ZONE_ID: ${{ secrets.ECI_ZONE_ID }}
-          ECI_TEST_REGION_NAME: ${{ secrets.ECI_TEST_REGION_NAME }}
-          ECI_TEST_ZONE_NAME: ${{ secrets.ECI_TEST_ZONE_NAME }}
-          ECI_TEST_INSTANCE_TYPE_NAME: ${{ secrets.ECI_TEST_INSTANCE_TYPE_NAME }}
-          ECI_TEST_IMAGE_NAME: ${{ secrets.ECI_TEST_IMAGE_NAME }}
-          ECI_TEST_PRICING_NAME: ${{ secrets.ECI_TEST_PRICING_NAME }}
-          ECI_TEST_PRICING_TYPE: ${{ secrets.ECI_TEST_PRICING_TYPE }}
-          ECI_TEST_VM_PRICING_NAME: ${{ secrets.ECI_TEST_VM_PRICING_NAME }}
-          ECI_TEST_VM_PRICING_TYPE: ${{ secrets.ECI_TEST_VM_PRICING_TYPE }}
-          ECI_TEST_BS_PRICING_NAME: ${{ secrets.ECI_TEST_BS_PRICING_NAME }}
-          ECI_TEST_BS_PRICING_TYPE: ${{ secrets.ECI_TEST_BS_PRICING_TYPE }}
-          ECI_TEST_PIP_PRICING_NAME: ${{ secrets.ECI_TEST_PIP_PRICING_NAME }}
-          ECI_TEST_PIP_PRICING_TYPE: ${{ secrets.ECI_TEST_PIP_PRICING_TYPE }}
+          # Non-sensitive — infrastructure config
+          ECI_TEST_REGION_NAME: "central-01"
+          ECI_TEST_ZONE_NAME: "central-01-a"
+          ECI_TEST_INSTANCE_TYPE_NAME: "C-2"
+          ECI_TEST_IMAGE_NAME: "Ubuntu 22.04 LTS (20250116)"
+          ECI_TEST_PRICING_NAME: "C-2"
+          ECI_TEST_PRICING_TYPE: "ondemand"
+          ECI_TEST_VM_PRICING_NAME: "C-2"
+          ECI_TEST_VM_PRICING_TYPE: "ondemand"
+          ECI_TEST_BS_PRICING_NAME: "Block Storage"
+          ECI_TEST_BS_PRICING_TYPE: "ondemand"
+          ECI_TEST_PIP_PRICING_NAME: "Public IP"
+          ECI_TEST_PIP_PRICING_TYPE: "ondemand"
