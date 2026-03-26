@@ -361,4 +361,17 @@ func (r *ResourceBlockStorageSnapshot) Delete(
 	}
 
 	tflog.Info(ctx, fmt.Sprintf("%s (block storage snapshot: %s)", successMessage, id))
+
+	_, diags := waitStatus(
+		func() (*string, error) {
+			getResponse, err := r.client.GetBlockStorageSnapshot(id)
+			if err != nil {
+				return nil, err
+			}
+			return &getResponse.Status, nil
+		},
+		[]string{"deleted"},
+		10,
+	)
+	resp.Diagnostics.Append(diags...)
 }

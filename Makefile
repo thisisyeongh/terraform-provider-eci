@@ -8,30 +8,48 @@ build:
 
 format:
 	golangci-lint run ./...
-	
+
 	gofmt -w main.go
 	gofmt -w internal/api/*.go
 	gofmt -w internal/provider/*.go
 	gofmt -w internal/resource/*.go
+	gofmt -w internal/datasource/*.go
+	gofmt -w internal/utils/*.go
+	gofmt -w internal/acctest/*.go
 
 	golines -w main.go
 	golines -w internal/api/*.go
 	golines -w internal/provider/*.go
 	golines -w internal/resource/*.go
+	golines -w internal/datasource/*.go
+	golines -w internal/utils/*.go
+	golines -w internal/acctest/*.go
 
-check: 
+check:
 	golangci-lint run ./...
 
 	test -z "$$(gofmt -l main.go)" || (echo "Run 'make format' to fix formatting issues in main.go" && exit 1)
 	test -z "$$(gofmt -l internal/api/*.go)" || (echo "Run 'make format' to fix formatting issues in internal/api" && exit 1)
 	test -z "$$(gofmt -l internal/provider/*.go)" || (echo "Run 'make format' to fix formatting issues in internal/provider" && exit 1)
 	test -z "$$(gofmt -l internal/resource/*.go)" || (echo "Run 'make format' to fix formatting issues in internal/resource" && exit 1)
+	test -z "$$(gofmt -l internal/datasource/*.go)" || (echo "Run 'make format' to fix formatting issues in internal/datasource" && exit 1)
+	test -z "$$(gofmt -l internal/utils/*.go)" || (echo "Run 'make format' to fix formatting issues in internal/utils" && exit 1)
+	test -z "$$(gofmt -l internal/acctest/*.go)" || (echo "Run 'make format' to fix formatting issues in internal/acctest" && exit 1)
 
 	test -z "$$(golines -l main.go)" || (echo "Run 'make format' to fix long lines in main.go" && exit 1)
 	test -z "$$(golines -l internal/api/*.go)" || (echo "Run 'make format' to fix long lines in internal/api" && exit 1)
 	test -z "$$(golines -l internal/provider/*.go)" || (echo "Run 'make format' to fix long lines in internal/provider" && exit 1)
 	test -z "$$(golines -l internal/resource/*.go)" || (echo "Run 'make format' to fix long lines in internal/resource" && exit 1)
+	test -z "$$(golines -l internal/datasource/*.go)" || (echo "Run 'make format' to fix long lines in internal/datasource" && exit 1)
+	test -z "$$(golines -l internal/utils/*.go)" || (echo "Run 'make format' to fix long lines in internal/utils" && exit 1)
+	test -z "$$(golines -l internal/acctest/*.go)" || (echo "Run 'make format' to fix long lines in internal/acctest" && exit 1)
 
+
+test:
+	go test ./... -v -count=1 -run '^Test[^A]'
+
+testacc:
+	TF_ACC=1 go test ./... -v -count=1 -timeout 120m
 
 generate_document:
 	tfplugindocs generate --provider-name=eci --examples-dir=examples
