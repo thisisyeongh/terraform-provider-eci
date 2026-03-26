@@ -36,9 +36,9 @@ jobs:
           TF_ACC: "1"
           # Sensitive — stored in GitHub Secrets
           ECI_API_ACCESS_TOKEN: ${{ secrets.ECI_API_ACCESS_TOKEN }}
-          ECI_API_ENDPOINT: ${{ secrets.ECI_API_ENDPOINT }}
-          ECI_ZONE_ID: ${{ secrets.ECI_ZONE_ID }}
           # Non-sensitive — infrastructure config
+          ECI_API_ENDPOINT: "https://portal.elice.cloud/api/"
+          ECI_ZONE_ID: "cb67250d-0050-44fa-9872-c8dd7fb9e614"
           ECI_TEST_REGION_NAME: "central-01"
           ECI_TEST_ZONE_NAME: "central-01-a"
           ECI_TEST_INSTANCE_TYPE_NAME: "C-2"
