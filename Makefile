@@ -49,7 +49,7 @@ test:
 	go test ./... -v -count=1 -run '^Test[^A]'
 
 testacc:
-	TF_ACC=1 go test ./... -v -count=1 -timeout 120m
+	TF_ACC=1 go test ./... -v -count=1 -timeout 120m -run '^TestAcc'
 
 generate_document:
 	tfplugindocs generate --provider-name=eci --examples-dir=examples

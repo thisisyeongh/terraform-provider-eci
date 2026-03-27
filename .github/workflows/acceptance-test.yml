@@ -17,6 +17,27 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
+      - name: Network diagnostics
+        run: |
+          echo "=== DNS ==="
+          nslookup portal.elice.cloud
+
+          echo "=== TCP connection ==="
+          timeout 10 bash -c 'echo | nc -v portal.elice.cloud 443' 2>&1 || echo "TCP failed"
+
+          echo "=== TLS handshake ==="
+          timeout 30 openssl s_client -connect portal.elice.cloud:443 -servername portal.elice.cloud </dev/null 2>&1 | head -20
+
+          echo "=== Sequential curl (5x) ==="
+          for i in {1..5}; do
+            timeout 15 curl -sS -o /dev/null -w "seq$i: http_code=%{http_code} time=%{time_total}s\n" https://portal.elice.cloud/api/ || echo "seq$i: failed"
+          done
+
+          echo "=== Concurrent curl (5x) ==="
+          for i in {1..5}; do
+            (timeout 15 curl -sS -o /dev/null -w "conn$i: http_code=%{http_code} time=%{time_total}s\n" https://portal.elice.cloud/api/ || echo "conn$i: failed") &
+          done
+          wait
       - name: Run acceptance tests
         run: make testacc
         env:
