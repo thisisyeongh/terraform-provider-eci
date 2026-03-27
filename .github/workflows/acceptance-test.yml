@@ -19,57 +19,58 @@ jobs:
           cache: true
       - name: Network diagnostics (Go level)
         run: |
-          go run -v <<'GOEOF'
+          cat > /tmp/netdiag.go << 'EOF'
           package main
 
           import (
-            "fmt"
-            "net/http"
-            "os"
-            "time"
+          	"fmt"
+          	"net/http"
+          	"os"
+          	"time"
           )
 
           func main() {
-            endpoint := os.Getenv("ECI_API_ENDPOINT")
-            token := os.Getenv("ECI_API_ACCESS_TOKEN")
+          	endpoint := os.Getenv("ECI_API_ENDPOINT")
+          	token := os.Getenv("ECI_API_ACCESS_TOKEN")
 
-            fmt.Println("=== Go HTTP sequential (5x) ===")
-            for i := 1; i <= 5; i++ {
-              start := time.Now()
-              req, _ := http.NewRequest("GET", endpoint + "user/organization", nil)
-              req.Header.Set("Authorization", "Bearer " + token)
-              resp, err := http.DefaultClient.Do(req)
-              elapsed := time.Since(start)
-              if err != nil {
-                fmt.Printf("seq%d: FAILED (%s) err=%s\n", i, elapsed, err)
-              } else {
-                fmt.Printf("seq%d: status=%d time=%s\n", i, resp.StatusCode, elapsed)
-                resp.Body.Close()
-              }
-            }
+          	fmt.Println("=== Go HTTP sequential (5x) ===")
+          	for i := 1; i <= 5; i++ {
+          		start := time.Now()
+          		req, _ := http.NewRequest("GET", endpoint+"user/organization", nil)
+          		req.Header.Set("Authorization", "Bearer "+token)
+          		resp, err := http.DefaultClient.Do(req)
+          		elapsed := time.Since(start)
+          		if err != nil {
+          			fmt.Printf("seq%d: FAILED (%s) err=%s\n", i, elapsed, err)
+          		} else {
+          			fmt.Printf("seq%d: status=%d time=%s\n", i, resp.StatusCode, elapsed)
+          			resp.Body.Close()
+          		}
+          	}
 
-            fmt.Println("=== Go HTTP concurrent (5x) ===")
-            done := make(chan string, 5)
-            for i := 1; i <= 5; i++ {
-              go func(n int) {
-                start := time.Now()
-                req, _ := http.NewRequest("GET", endpoint + "user/organization", nil)
-                req.Header.Set("Authorization", "Bearer " + token)
-                resp, err := http.DefaultClient.Do(req)
-                elapsed := time.Since(start)
-                if err != nil {
-                  done <- fmt.Sprintf("conn%d: FAILED (%s) err=%s", n, elapsed, err)
-                } else {
-                  done <- fmt.Sprintf("conn%d: status=%d time=%s", n, resp.StatusCode, elapsed)
-                  resp.Body.Close()
-                }
-              }(i)
-            }
-            for i := 0; i < 5; i++ {
-              fmt.Println(<-done)
-            }
+          	fmt.Println("=== Go HTTP concurrent (5x) ===")
+          	done := make(chan string, 5)
+          	for i := 1; i <= 5; i++ {
+          		go func(n int) {
+          			start := time.Now()
+          			req, _ := http.NewRequest("GET", endpoint+"user/organization", nil)
+          			req.Header.Set("Authorization", "Bearer "+token)
+          			resp, err := http.DefaultClient.Do(req)
+          			elapsed := time.Since(start)
+          			if err != nil {
+          				done <- fmt.Sprintf("conn%d: FAILED (%s) err=%s", n, elapsed, err)
+          			} else {
+          				done <- fmt.Sprintf("conn%d: status=%d time=%s", n, resp.StatusCode, elapsed)
+          				resp.Body.Close()
+          			}
+          		}(i)
+          	}
+          	for i := 0; i < 5; i++ {
+          		fmt.Println(<-done)
+          	}
           }
-          GOEOF
+          EOF
+          go run /tmp/netdiag.go
         env:
           ECI_API_ACCESS_TOKEN: ${{ secrets.ECI_API_ACCESS_TOKEN }}
           ECI_API_ENDPOINT: "https://portal.elice.cloud/api/"
