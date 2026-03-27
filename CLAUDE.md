@@ -68,6 +68,15 @@ Elice Cloud Infrastructure (ECI) Terraform Provider. Built with Go 1.25, terrafo
 - Resource names: generate with `acctest.RandomName(prefix)`
 - All tests use randomized names to allow safe parallel execution across multiple developers
 
+### Development Workflow
+
+1. Write code and tests
+2. Run locally: `source .env.test && make testacc` — verify all tests pass
+3. Push and create PR
+4. CI runs unit tests automatically
+5. Maintainer reviews code, adds `run-acceptance-tests` label to trigger acceptance tests in CI
+6. Maintainer verifies acceptance test results, then approves and merges
+
 ### CI Workflow
 
 - **Unit test** (`test.yml`) — runs automatically on every push and PR
