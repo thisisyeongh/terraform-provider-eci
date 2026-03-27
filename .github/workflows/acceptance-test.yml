@@ -17,27 +17,62 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
-      - name: Network diagnostics
+      - name: Network diagnostics (Go level)
         run: |
-          echo "=== DNS ==="
-          nslookup portal.elice.cloud
+          go run -v <<'GOEOF'
+          package main
 
-          echo "=== TCP connection ==="
-          timeout 10 bash -c 'echo | nc -v portal.elice.cloud 443' 2>&1 || echo "TCP failed"
+          import (
+            "fmt"
+            "net/http"
+            "os"
+            "time"
+          )
 
-          echo "=== TLS handshake ==="
-          timeout 30 openssl s_client -connect portal.elice.cloud:443 -servername portal.elice.cloud </dev/null 2>&1 | head -20
+          func main() {
+            endpoint := os.Getenv("ECI_API_ENDPOINT")
+            token := os.Getenv("ECI_API_ACCESS_TOKEN")
 
-          echo "=== Sequential curl (5x) ==="
-          for i in {1..5}; do
-            timeout 15 curl -sS -o /dev/null -w "seq$i: http_code=%{http_code} time=%{time_total}s\n" https://portal.elice.cloud/api/ || echo "seq$i: failed"
-          done
+            fmt.Println("=== Go HTTP sequential (5x) ===")
+            for i := 1; i <= 5; i++ {
+              start := time.Now()
+              req, _ := http.NewRequest("GET", endpoint + "user/organization", nil)
+              req.Header.Set("Authorization", "Bearer " + token)
+              resp, err := http.DefaultClient.Do(req)
+              elapsed := time.Since(start)
+              if err != nil {
+                fmt.Printf("seq%d: FAILED (%s) err=%s\n", i, elapsed, err)
+              } else {
+                fmt.Printf("seq%d: status=%d time=%s\n", i, resp.StatusCode, elapsed)
+                resp.Body.Close()
+              }
+            }
 
-          echo "=== Concurrent curl (5x) ==="
-          for i in {1..5}; do
-            (timeout 15 curl -sS -o /dev/null -w "conn$i: http_code=%{http_code} time=%{time_total}s\n" https://portal.elice.cloud/api/ || echo "conn$i: failed") &
-          done
-          wait
+            fmt.Println("=== Go HTTP concurrent (5x) ===")
+            done := make(chan string, 5)
+            for i := 1; i <= 5; i++ {
+              go func(n int) {
+                start := time.Now()
+                req, _ := http.NewRequest("GET", endpoint + "user/organization", nil)
+                req.Header.Set("Authorization", "Bearer " + token)
+                resp, err := http.DefaultClient.Do(req)
+                elapsed := time.Since(start)
+                if err != nil {
+                  done <- fmt.Sprintf("conn%d: FAILED (%s) err=%s", n, elapsed, err)
+                } else {
+                  done <- fmt.Sprintf("conn%d: status=%d time=%s", n, resp.StatusCode, elapsed)
+                  resp.Body.Close()
+                }
+              }(i)
+            }
+            for i := 0; i < 5; i++ {
+              fmt.Println(<-done)
+            }
+          }
+          GOEOF
+        env:
+          ECI_API_ACCESS_TOKEN: ${{ secrets.ECI_API_ACCESS_TOKEN }}
+          ECI_API_ENDPOINT: "https://portal.elice.cloud/api/"
       - name: Run acceptance tests
         run: make testacc
         env:
