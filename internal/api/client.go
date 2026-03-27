@@ -1,10 +1,8 @@
 package api
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"time"
 
@@ -56,18 +54,11 @@ func NewAPIClient(
 ) (*APIClient, error) {
 	transport := &http.Transport{
 		TLSHandshakeTimeout: 60 * time.Second,
-		DialContext: (&net.Dialer{
-			Timeout: 60 * time.Second,
-		}).DialContext,
-		TLSClientConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
-		},
 	}
 
 	client := resty.New().
 		SetDebug(debug).
 		SetBaseURL(baseURL).
-		SetTimeout(60 * time.Second).
 		SetTransport(transport).
 		SetHeader("Authorization", fmt.Sprintf("Bearer %s", token))
 
