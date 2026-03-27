@@ -17,110 +17,79 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
-      - name: Network diagnostics (Go level)
+      - name: Network diagnostics
         run: |
+          echo "=== curl sequential 50x (new connection each, no keep-alive) ==="
+          for i in $(seq 1 50); do
+            curl -sS -o /dev/null --no-keepalive --max-time 30 \
+              -w "curl_seq%02d: http_code=%{http_code} time=%{time_total}s tcp=%{time_connect}s tls=%{time_appconnect}s\n" \
+              https://portal.elice.cloud/api/ 2>&1 | sed "s/%02d/$(printf '%02d' $i)/" || echo "curl_seq$(printf '%02d' $i): FAILED"
+          done
+
+          echo ""
+          echo "=== curl concurrent 50x ==="
+          for i in $(seq 1 50); do
+            (curl -sS -o /dev/null --no-keepalive --max-time 30 \
+              -w "curl_conc$(printf '%02d' $i): http_code=%{http_code} time=%{time_total}s tcp=%{time_connect}s tls=%{time_appconnect}s\n" \
+              https://portal.elice.cloud/api/ || echo "curl_conc$(printf '%02d' $i): FAILED") &
+          done
+          wait
+
+          echo ""
+          echo "=== Go diagnostics ==="
           cat > /tmp/netdiag.go << 'GOEOF'
           package main
 
           import (
+          	"context"
           	"crypto/tls"
           	"fmt"
           	"net"
-          	"net/http"
           	"os"
-          	"sync"
-          	"sync/atomic"
           	"time"
           )
 
-          func newClient() *http.Client {
-          	return &http.Client{
-          		Transport: &http.Transport{
-          			DisableKeepAlives: true,
-          			DialContext: (&net.Dialer{
-          				Timeout: 30 * time.Second,
-          			}).DialContext,
-          			TLSHandshakeTimeout: 30 * time.Second,
-          			TLSClientConfig:     &tls.Config{},
-          		},
-          		Timeout: 60 * time.Second,
-          	}
-          }
-
-          func doRequest(endpoint, token string) (int, time.Duration, error) {
-          	client := newClient()
-          	start := time.Now()
-          	req, _ := http.NewRequest("GET", endpoint+"user/organization", nil)
-          	req.Header.Set("Authorization", "Bearer "+token)
-          	resp, err := client.Do(req)
-          	elapsed := time.Since(start)
-          	if err != nil {
-          		return 0, elapsed, err
-          	}
-          	resp.Body.Close()
-          	return resp.StatusCode, elapsed, nil
-          }
-
           func main() {
-          	endpoint := os.Getenv("ECI_API_ENDPOINT")
-          	token := os.Getenv("ECI_API_ACCESS_TOKEN")
+          	host := "portal.elice.cloud"
 
-          	fmt.Println("=== Sequential: 50 requests, each with NEW connection ===")
-          	var seqFail int
-          	for i := 1; i <= 50; i++ {
-          		status, elapsed, err := doRequest(endpoint, token)
-          		if err != nil {
-          			seqFail++
-          			fmt.Printf("seq%02d: FAILED (%s) err=%s\n", i, elapsed, err)
-          		} else {
-          			fmt.Printf("seq%02d: status=%d time=%s\n", i, status, elapsed)
-          		}
+          	fmt.Println("=== Go DNS resolver ===")
+          	resolver := net.DefaultResolver
+          	ctx := context.Background()
+          	addrs, err := resolver.LookupHost(ctx, host)
+          	if err != nil {
+          		fmt.Printf("DNS FAILED: %s\n", err)
+          	} else {
+          		fmt.Printf("DNS resolved: %v\n", addrs)
           	}
-          	fmt.Printf("Sequential result: %d/50 failed\n\n", seqFail)
 
-          	fmt.Println("=== Concurrent: 20 requests, each with NEW connection ===")
-          	var concFail atomic.Int32
-          	var wg sync.WaitGroup
-          	for i := 1; i <= 20; i++ {
-          		wg.Add(1)
-          		go func(n int) {
-          			defer wg.Done()
-          			status, elapsed, err := doRequest(endpoint, token)
-          			if err != nil {
-          				concFail.Add(1)
-          				fmt.Printf("conc%02d: FAILED (%s) err=%s\n", n, elapsed, err)
-          			} else {
-          				fmt.Printf("conc%02d: status=%d time=%s\n", n, status, elapsed)
-          			}
-          		}(i)
+          	fmt.Println("\n=== Go TLS details ===")
+          	dialer := &net.Dialer{Timeout: 10 * time.Second}
+          	conn, err := tls.DialWithDialer(dialer, "tcp", host+":443", &tls.Config{})
+          	if err != nil {
+          		fmt.Printf("TLS dial FAILED: %s\n", err)
+          		os.Exit(1)
           	}
-          	wg.Wait()
-          	fmt.Printf("Concurrent 20 result: %d/20 failed\n\n", concFail.Load())
+          	state := conn.ConnectionState()
+          	fmt.Printf("TLS version: %d (0x0304=TLS1.3, 0x0303=TLS1.2)\n", state.Version)
+          	fmt.Printf("Cipher suite: %d\n", state.CipherSuite)
+          	fmt.Printf("Server name: %s\n", state.ServerName)
+          	fmt.Printf("Negotiated protocol: %s\n", state.NegotiatedProtocol)
+          	conn.Close()
 
-          	fmt.Println("=== Concurrent: 50 requests, each with NEW connection ===")
-          	var concFail50 atomic.Int32
-          	var wg50 sync.WaitGroup
-          	for i := 1; i <= 50; i++ {
-          		wg50.Add(1)
-          		go func(n int) {
-          			defer wg50.Done()
-          			status, elapsed, err := doRequest(endpoint, token)
-          			if err != nil {
-          				concFail50.Add(1)
-          				fmt.Printf("conc50_%02d: FAILED (%s) err=%s\n", n, elapsed, err)
-          			} else {
-          				fmt.Printf("conc50_%02d: status=%d time=%s\n", n, status, elapsed)
-          			}
-          		}(i)
-          	}
-          	wg50.Wait()
-          	fmt.Printf("Concurrent 50 result: %d/50 failed\n", concFail50.Load())
+          	fmt.Println("\n=== Go net.Dialer resolver comparison ===")
+          	fmt.Println("--- Using Go resolver ---")
+          	resolver.PreferGo = true
+          	addrsGo, _ := resolver.LookupHost(ctx, host)
+          	fmt.Printf("Go resolver: %v\n", addrsGo)
+
+          	fmt.Println("--- Using CGO/system resolver ---")
+          	resolver.PreferGo = false
+          	addrsCgo, _ := resolver.LookupHost(ctx, host)
+          	fmt.Printf("CGO resolver: %v\n", addrsCgo)
           }
           GOEOF
           go run /tmp/netdiag.go
-        env:
-          ECI_API_ACCESS_TOKEN: ${{ secrets.ECI_API_ACCESS_TOKEN }}
-          ECI_API_ENDPOINT: "https://portal.elice.cloud/api/"
+      - name: Run acceptance tests
       - name: Run acceptance tests
         run: make testacc
         env:
