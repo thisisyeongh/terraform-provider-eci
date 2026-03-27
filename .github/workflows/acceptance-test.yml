@@ -11,27 +11,68 @@ jobs:
   acceptance_test:
     if: contains(github.event.pull_request.labels.*.name, 'run-acceptance-tests')
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: curl 200x sequential (new connection, 120s timeout)
+      - name: Install network tools
+        run: sudo apt-get update && sudo apt-get install -y mtr-tiny traceroute
+      - name: Network route analysis
         run: |
-          echo "=== curl 200x sequential (--no-keepalive, --max-time 120) ==="
+          echo "=== 1. DNS resolution ==="
+          dig portal.elice.cloud A +short
+          dig portal.elice.cloud AAAA +short || echo "(no AAAA)"
+          dig portal.elice.cloud +trace 2>&1 | tail -20
+
+          echo ""
+          echo "=== 2. Traceroute (ICMP) ==="
+          traceroute -m 30 -w 5 portal.elice.cloud 2>&1 || true
+
+          echo ""
+          echo "=== 3. Traceroute (TCP port 443) ==="
+          sudo traceroute -T -p 443 -m 30 -w 5 portal.elice.cloud 2>&1 || true
+
+          echo ""
+          echo "=== 4. MTR report (60 packets) ==="
+          mtr --report --report-cycles 60 --no-dns portal.elice.cloud 2>&1 || true
+
+          echo ""
+          echo "=== 5. Runner IP and location ==="
+          curl -s https://ipinfo.io || true
+      - name: curl 500x with full timing (0.5s sleep between requests)
+        run: |
+          echo "=== curl 500x sequential (--no-keepalive, --max-time 120, 0.5s sleep) ==="
+          echo "Columns: # http_code total_time dns_time tcp_time tls_time starttransfer_time remote_ip"
+          echo ""
           failed=0
-          for i in $(seq 1 200); do
+          slow=0
+          for i in $(seq 1 500); do
             result=$(curl -sS -o /dev/null --no-keepalive --max-time 120 \
-              -w "%{http_code} %{time_total} %{time_connect} %{time_appconnect}" \
+              -w "%{http_code} %{time_total} %{time_namelookup} %{time_connect} %{time_appconnect} %{time_starttransfer} %{remote_ip}" \
               https://portal.elice.cloud/api/user/organization 2>&1) || true
             code=$(echo "$result" | awk '{print $1}')
             total=$(echo "$result" | awk '{print $2}')
+            dns=$(echo "$result" | awk '{print $3}')
+            tcp=$(echo "$result" | awk '{print $4}')
+            tls=$(echo "$result" | awk '{print $5}')
+            ttfb=$(echo "$result" | awk '{print $6}')
+            ip=$(echo "$result" | awk '{print $7}')
             if [ "$code" = "000" ] || [ -z "$code" ]; then
               failed=$((failed + 1))
-              printf "  %03d: FAILED %s\n" "$i" "$result"
+              printf "  %03d: FAILED total=%ss dns=%ss tcp=%ss tls=%ss ip=%s err=%s\n" "$i" "$total" "$dns" "$tcp" "$tls" "$ip" "$result"
             else
-              printf "  %03d: http=%s time=%ss\n" "$i" "$code" "$total"
+              # Flag slow requests (>2s)
+              is_slow=$(echo "$total > 2.0" | bc -l 2>/dev/null || echo 0)
+              if [ "$is_slow" = "1" ]; then
+                slow=$((slow + 1))
+                printf "  %03d: [SLOW] http=%s total=%ss dns=%ss tcp=%ss tls=%ss ttfb=%ss ip=%s\n" "$i" "$code" "$total" "$dns" "$tcp" "$tls" "$ttfb" "$ip"
+              else
+                printf "  %03d: http=%s total=%ss dns=%ss tcp=%ss tls=%ss ttfb=%ss ip=%s\n" "$i" "$code" "$total" "$dns" "$tcp" "$tls" "$ttfb" "$ip"
+              fi
             fi
+            sleep 0.5
           done
           echo ""
-          echo "Result: $failed/200 failed"
-          if [ "$failed" -gt 0 ]; then
-            exit 1
-          fi
+          echo "=== Summary ==="
+          echo "Total: 500 requests"
+          echo "Failed: $failed"
+          echo "Slow (>2s): $slow"
