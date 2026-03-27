@@ -90,7 +90,6 @@ jobs:
           GOEOF
           go run /tmp/netdiag.go
       - name: Run acceptance tests
-      - name: Run acceptance tests
         run: make testacc
         env:
           TF_ACC: "1"
