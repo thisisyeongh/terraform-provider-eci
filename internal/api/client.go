@@ -3,8 +3,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"time"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -52,14 +50,9 @@ func NewAPIClient(
 	zoneId string,
 	debug bool,
 ) (*APIClient, error) {
-	transport := &http.Transport{
-		TLSHandshakeTimeout: 60 * time.Second,
-	}
-
 	client := resty.New().
 		SetDebug(debug).
 		SetBaseURL(baseURL).
-		SetTransport(transport).
 		SetHeader("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	result, err := handleAPIResponse[OrganizationGetResponse](
