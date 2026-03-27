@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -53,6 +54,9 @@ func NewAPIClient(
 	client := resty.New().
 		SetDebug(debug).
 		SetBaseURL(baseURL).
+		SetRetryCount(3).
+		SetRetryWaitTime(1 * time.Second).
+		SetRetryMaxWaitTime(5 * time.Second).
 		SetHeader("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	result, err := handleAPIResponse[OrganizationGetResponse](
