@@ -17,75 +17,104 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
-      - name: Network diagnostics
+      - name: Network diagnostics (deep dive)
         run: |
-          echo "=== curl sequential 50x (new connection each, no keep-alive) ==="
-          for i in $(seq 1 50); do
-            curl -sS -o /dev/null --no-keepalive --max-time 30 \
-              -w "curl_seq%02d: http_code=%{http_code} time=%{time_total}s tcp=%{time_connect}s tls=%{time_appconnect}s\n" \
-              https://portal.elice.cloud/api/ 2>&1 | sed "s/%02d/$(printf '%02d' $i)/" || echo "curl_seq$(printf '%02d' $i): FAILED"
-          done
-
-          echo ""
-          echo "=== curl concurrent 50x ==="
-          for i in $(seq 1 50); do
-            (curl -sS -o /dev/null --no-keepalive --max-time 30 \
-              -w "curl_conc$(printf '%02d' $i): http_code=%{http_code} time=%{time_total}s tcp=%{time_connect}s tls=%{time_appconnect}s\n" \
-              https://portal.elice.cloud/api/ || echo "curl_conc$(printf '%02d' $i): FAILED") &
-          done
-          wait
-
-          echo ""
-          echo "=== Go diagnostics ==="
           cat > /tmp/netdiag.go << 'GOEOF'
           package main
 
           import (
-          	"context"
           	"crypto/tls"
           	"fmt"
           	"net"
-          	"os"
+          	"net/http"
           	"time"
           )
 
+          type testConfig struct {
+          	name      string
+          	transport *http.Transport
+          }
+
+          func runTest(cfg testConfig, url string, count int) {
+          	fmt.Printf("\n=== %s (%d requests) ===\n", cfg.name, count)
+          	failed := 0
+          	for i := 1; i <= count; i++ {
+          		client := &http.Client{Transport: cfg.transport, Timeout: 15 * time.Second}
+          		start := time.Now()
+          		resp, err := client.Get(url)
+          		elapsed := time.Since(start)
+          		if err != nil {
+          			failed++
+          			fmt.Printf("  %02d: FAILED (%s) %s\n", i, elapsed, err)
+          		} else {
+          			fmt.Printf("  %02d: status=%d time=%s\n", i, resp.StatusCode, elapsed)
+          			resp.Body.Close()
+          		}
+          		client.CloseIdleConnections()
+          	}
+          	fmt.Printf("  Result: %d/%d failed\n", failed, count)
+          }
+
           func main() {
-          	host := "portal.elice.cloud"
+          	url := "https://portal.elice.cloud/api/user/organization"
+          	n := 30
 
-          	fmt.Println("=== Go DNS resolver ===")
-          	resolver := net.DefaultResolver
-          	ctx := context.Background()
-          	addrs, err := resolver.LookupHost(ctx, host)
-          	if err != nil {
-          		fmt.Printf("DNS FAILED: %s\n", err)
-          	} else {
-          		fmt.Printf("DNS resolved: %v\n", addrs)
+          	configs := []testConfig{
+          		{
+          			name: "1. Default Go (TLS 1.3, keep-alive, HTTP/2)",
+          			transport: &http.Transport{
+          				DisableKeepAlives: true,
+          			},
+          		},
+          		{
+          			name: "2. Force TLS 1.2 only",
+          			transport: &http.Transport{
+          				DisableKeepAlives: true,
+          				TLSClientConfig: &tls.Config{
+          					MaxVersion: tls.VersionTLS12,
+          				},
+          			},
+          		},
+          		{
+          			name: "3. Disable TCP keep-alive",
+          			transport: &http.Transport{
+          				DisableKeepAlives: true,
+          				DialContext: (&net.Dialer{
+          					Timeout:   10 * time.Second,
+          					KeepAlive: -1,
+          				}).DialContext,
+          			},
+          		},
+          		{
+          			name: "4. Disable HTTP/2",
+          			transport: &http.Transport{
+          				DisableKeepAlives: true,
+          				ForceAttemptHTTP2: false,
+          				TLSClientConfig: &tls.Config{
+          					NextProtos: []string{"http/1.1"},
+          				},
+          			},
+          		},
+          		{
+          			name: "5. TLS 1.2 + no HTTP/2 + no keep-alive (curl-like)",
+          			transport: &http.Transport{
+          				DisableKeepAlives: true,
+          				ForceAttemptHTTP2: false,
+          				DialContext: (&net.Dialer{
+          					Timeout:   10 * time.Second,
+          					KeepAlive: -1,
+          				}).DialContext,
+          				TLSClientConfig: &tls.Config{
+          					MaxVersion: tls.VersionTLS12,
+          					NextProtos: []string{"http/1.1"},
+          				},
+          			},
+          		},
           	}
 
-          	fmt.Println("\n=== Go TLS details ===")
-          	dialer := &net.Dialer{Timeout: 10 * time.Second}
-          	conn, err := tls.DialWithDialer(dialer, "tcp", host+":443", &tls.Config{})
-          	if err != nil {
-          		fmt.Printf("TLS dial FAILED: %s\n", err)
-          		os.Exit(1)
+          	for _, cfg := range configs {
+          		runTest(cfg, url, n)
           	}
-          	state := conn.ConnectionState()
-          	fmt.Printf("TLS version: %d (0x0304=TLS1.3, 0x0303=TLS1.2)\n", state.Version)
-          	fmt.Printf("Cipher suite: %d\n", state.CipherSuite)
-          	fmt.Printf("Server name: %s\n", state.ServerName)
-          	fmt.Printf("Negotiated protocol: %s\n", state.NegotiatedProtocol)
-          	conn.Close()
-
-          	fmt.Println("\n=== Go net.Dialer resolver comparison ===")
-          	fmt.Println("--- Using Go resolver ---")
-          	resolver.PreferGo = true
-          	addrsGo, _ := resolver.LookupHost(ctx, host)
-          	fmt.Printf("Go resolver: %v\n", addrsGo)
-
-          	fmt.Println("--- Using CGO/system resolver ---")
-          	resolver.PreferGo = false
-          	addrsCgo, _ := resolver.LookupHost(ctx, host)
-          	fmt.Printf("CGO resolver: %v\n", addrsCgo)
           }
           GOEOF
           go run /tmp/netdiag.go
