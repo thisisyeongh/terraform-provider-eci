@@ -68,9 +68,15 @@ Elice Cloud Infrastructure (ECI) Terraform Provider. Built with Go 1.25, terrafo
 - Resource names: generate with `acctest.RandomName(prefix)`
 - All tests use randomized names to allow safe parallel execution across multiple developers
 
+### CI Workflow
+
+- **Unit test** (`test.yml`) — runs automatically on every push and PR
+- **Acceptance test** (`acceptance-test.yml`) — runs only when a maintainer adds the `run-acceptance-tests` label to a PR
+- External contributors only trigger unit tests; maintainers review the code first, then trigger acceptance tests via label
+
 ### Acceptance Test Environment
 
 - Local: create `.env.test` (gitignored) with required env vars, then `source .env.test && make testacc`
-- CI: store env vars in GitHub Secrets (Settings > Secrets and variables > Actions)
-- If pricing plan names or other infrastructure names change, update `.github/workflows/test.yml` and `.env.test.example`
+- CI: `ECI_API_ACCESS_TOKEN` is stored in GitHub Secrets; all other config is hardcoded in `acceptance-test.yml`
+- If pricing plan names or other infrastructure names change, update `.github/workflows/acceptance-test.yml` and `.env.test.example`
 - See `.env.test.example` for the full list of required variables
