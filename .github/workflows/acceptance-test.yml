@@ -17,125 +17,80 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
-      - name: Network diagnostics (deep dive)
+      - name: Network diagnostics (Go vs curl on failure)
         run: |
           cat > /tmp/netdiag.go << 'GOEOF'
           package main
 
           import (
-          	"crypto/tls"
           	"fmt"
-          	"net"
           	"net/http"
+          	"os/exec"
+          	"strings"
           	"time"
           )
 
-          type testConfig struct {
-          	name      string
-          	transport *http.Transport
-          }
+          func main() {
+          	url := "https://portal.elice.cloud/api/user/organization"
+          	n := 50
 
-          func runTest(cfg testConfig, url string, count int) {
-          	fmt.Printf("\n=== %s (%d requests) ===\n", cfg.name, count)
+          	fmt.Printf("=== Go net/http: %d requests (new connection each) ===\n", n)
+          	fmt.Println("On failure, immediately run curl to check if network is reachable\n")
+
           	failed := 0
-          	for i := 1; i <= count; i++ {
-          		client := &http.Client{Transport: cfg.transport, Timeout: 15 * time.Second}
+          	for i := 1; i <= n; i++ {
+          		client := &http.Client{
+          			Transport: &http.Transport{DisableKeepAlives: true},
+          			Timeout:   15 * time.Second,
+          		}
           		start := time.Now()
           		resp, err := client.Get(url)
           		elapsed := time.Since(start)
+          		client.CloseIdleConnections()
+
           		if err != nil {
           			failed++
-          			fmt.Printf("  %02d: FAILED (%s) %s\n", i, elapsed, err)
+          			fmt.Printf("  %02d: GO FAILED (%s) %s\n", i, elapsed, err)
+
+          			// Immediately try curl to see if network works right now
+          			curlStart := time.Now()
+          			out, curlErr := exec.Command("curl", "-sS", "-o", "/dev/null",
+          				"--no-keepalive", "--max-time", "10",
+          				"-w", "http_code=%{http_code} time=%{time_total}s tcp=%{time_connect}s tls=%{time_appconnect}s",
+          				url).CombinedOutput()
+          			curlElapsed := time.Since(curlStart)
+
+          			if curlErr != nil {
+          				fmt.Printf("      CURL ALSO FAILED (%s): %s %s\n", curlElapsed, string(out), curlErr)
+          			} else {
+          				fmt.Printf("      CURL OK (%s): %s\n", curlElapsed, strings.TrimSpace(string(out)))
+          			}
           		} else {
           			fmt.Printf("  %02d: status=%d time=%s\n", i, resp.StatusCode, elapsed)
           			resp.Body.Close()
           		}
-          		client.CloseIdleConnections()
           	}
-          	fmt.Printf("  Result: %d/%d failed\n", failed, count)
-          }
-
-          func main() {
-          	url := "https://portal.elice.cloud/api/user/organization"
-          	n := 30
-
-          	configs := []testConfig{
-          		{
-          			name: "1. Default Go (TLS 1.3, keep-alive, HTTP/2)",
-          			transport: &http.Transport{
-          				DisableKeepAlives: true,
-          			},
-          		},
-          		{
-          			name: "2. Force TLS 1.2 only",
-          			transport: &http.Transport{
-          				DisableKeepAlives: true,
-          				TLSClientConfig: &tls.Config{
-          					MaxVersion: tls.VersionTLS12,
-          				},
-          			},
-          		},
-          		{
-          			name: "3. Disable TCP keep-alive",
-          			transport: &http.Transport{
-          				DisableKeepAlives: true,
-          				DialContext: (&net.Dialer{
-          					Timeout:   10 * time.Second,
-          					KeepAlive: -1,
-          				}).DialContext,
-          			},
-          		},
-          		{
-          			name: "4. Disable HTTP/2",
-          			transport: &http.Transport{
-          				DisableKeepAlives: true,
-          				ForceAttemptHTTP2: false,
-          				TLSClientConfig: &tls.Config{
-          					NextProtos: []string{"http/1.1"},
-          				},
-          			},
-          		},
-          		{
-          			name: "5. TLS 1.2 + no HTTP/2 + no keep-alive (curl-like)",
-          			transport: &http.Transport{
-          				DisableKeepAlives: true,
-          				ForceAttemptHTTP2: false,
-          				DialContext: (&net.Dialer{
-          					Timeout:   10 * time.Second,
-          					KeepAlive: -1,
-          				}).DialContext,
-          				TLSClientConfig: &tls.Config{
-          					MaxVersion: tls.VersionTLS12,
-          					NextProtos: []string{"http/1.1"},
-          				},
-          			},
-          		},
-          	}
-
-          	for _, cfg := range configs {
-          		runTest(cfg, url, n)
-          	}
+          	fmt.Printf("\nResult: %d/%d failed\n", failed, n)
           }
           GOEOF
           go run /tmp/netdiag.go
-      - name: Run acceptance tests
-        run: make testacc
-        env:
-          TF_ACC: "1"
-          # Sensitive — stored in GitHub Secrets
-          ECI_API_ACCESS_TOKEN: ${{ secrets.ECI_API_ACCESS_TOKEN }}
-          # Non-sensitive — infrastructure config
-          ECI_API_ENDPOINT: "https://portal.elice.cloud/api/"
-          ECI_ZONE_ID: "cb67250d-0050-44fa-9872-c8dd7fb9e614"
-          ECI_TEST_REGION_NAME: "central-01"
-          ECI_TEST_ZONE_NAME: "central-01-a"
-          ECI_TEST_INSTANCE_TYPE_NAME: "C-2"
-          ECI_TEST_IMAGE_NAME: "Ubuntu 22.04 LTS (20250116)"
-          ECI_TEST_PRICING_NAME: "C-2"
-          ECI_TEST_PRICING_TYPE: "ondemand"
-          ECI_TEST_VM_PRICING_NAME: "C-2"
-          ECI_TEST_VM_PRICING_TYPE: "ondemand"
-          ECI_TEST_BS_PRICING_NAME: "Block Storage"
-          ECI_TEST_BS_PRICING_TYPE: "ondemand"
-          ECI_TEST_PIP_PRICING_NAME: "Public IP"
-          ECI_TEST_PIP_PRICING_TYPE: "ondemand"
+      # Acceptance tests temporarily disabled while investigating network issues
+      # - name: Run acceptance tests
+      #   run: make testacc
+      #   env:
+      #     TF_ACC: "1"
+      #     ECI_API_ACCESS_TOKEN: ${{ secrets.ECI_API_ACCESS_TOKEN }}
+      #     ECI_API_ENDPOINT: "https://portal.elice.cloud/api/"
+      #     ECI_ZONE_ID: "cb67250d-0050-44fa-9872-c8dd7fb9e614"
+      #     ECI_TEST_REGION_NAME: "central-01"
+      #     ECI_TEST_ZONE_NAME: "central-01-a"
+      #     ECI_TEST_INSTANCE_TYPE_NAME: "C-2"
+      #     ECI_TEST_IMAGE_NAME: "Ubuntu 22.04 LTS (20250116)"
+      #     ECI_TEST_PRICING_NAME: "C-2"
+      #     ECI_TEST_PRICING_TYPE: "ondemand"
+      #     ECI_TEST_VM_PRICING_NAME: "C-2"
+      #     ECI_TEST_VM_PRICING_TYPE: "ondemand"
+      #     ECI_TEST_BS_PRICING_NAME: "Block Storage"
+      #     ECI_TEST_BS_PRICING_TYPE: "ondemand"
+      #     ECI_TEST_PIP_PRICING_NAME: "Public IP"
+      #     ECI_TEST_PIP_PRICING_TYPE: "ondemand"
