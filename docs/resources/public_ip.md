@@ -13,9 +13,15 @@ Public IP
 ## Example Usage
 
 ```terraform
+data "eci_pricing" "ip_pricing" {
+  name         = "Public IP"
+  pricing_type = "ondemand"
+}
+
 resource "eci_public_ip" "my_public_ip" {
   attached_network_interface_id="4adf2682-d8f3-451c-8bfc-3383deb424a5"
   dr=false
+  pricing_id="${data.eci_pricing.ip_pricing.id}"
   tags = {
     "created-by": "terraform"
   }
@@ -29,6 +35,7 @@ resource "eci_public_ip" "my_public_ip" {
 
 - `attached_network_interface_id` (String) id of network interface that the public ip attaches to
 - `dr` (Boolean) whether to enable DR support
+- `pricing_id` (String) id of pricing plan for the public IP
 - `tags` (Map of String) User-defined metadata of key-value pairs
 
 ### Read-Only
@@ -42,5 +49,6 @@ resource "eci_public_ip" "my_public_ip" {
 - `modified` (String) the last time when the public ip is modified
 - `organization_id` (String) id of organization that the public ip belongs to
 - `pool_id` (String)
+- `pricing_type` (String) type of pricing plan (computed)
 - `status` (String) status of the public ip
 - `zone_id` (String) id of zone that the public ip belongs to

@@ -13,9 +13,15 @@ Virtual Machine
 ## Example Usage
 
 ```terraform
+data "eci_pricing" "vm_pricing" {
+  name         = "M-8"
+  pricing_type = "ondemand"
+}
+
 resource "eci_virtual_machine" "my_virtual_machine" {
   name="my-vm-1"
   instance_type_id="d0ba1aed-1414-4388-9c2a-9083ae3154d2"
+  pricing_id="${data.eci_pricing.vm_pricing.id}"
   always_on=false
   username="elice"
   password="secretpassword1!"
@@ -38,6 +44,7 @@ resource "eci_virtual_machine" "my_virtual_machine" {
 - `name` (String) human-readable name of the virtual machine
 - `on_init_script` (String) script to run on the first boot of the virtual machine
 - `password` (String, Sensitive) password of first user that the virtual machine will generate
+- `pricing_id` (String) id of pricing plan for the virtual machine
 - `tags` (Map of String) User-defined metadata of key-value pairs
 - `username` (String) name of first user that the virtual machine will generate
 
@@ -49,5 +56,6 @@ resource "eci_virtual_machine" "my_virtual_machine" {
 - `id` (String) unique identifier of the virtual machine
 - `modified` (String) last time when the virtual machine is modified
 - `organization_id` (String) id of organization that the virtual machine belongs to
+- `pricing_type` (String) type of pricing plan (computed)
 - `status` (String)
 - `zone_id` (String) id of zone that the virtual machine belongs to
