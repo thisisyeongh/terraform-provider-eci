@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"math"
 	"terraform-provider-eci/internal/api"
-	. "terraform-provider-eci/internal/utils"
+	"terraform-provider-eci/internal/utils"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -51,15 +51,15 @@ func resourceSubnetGetResponseToSubnetModel(
 
 	data.Tags = tags
 	data.Created = types.StringValue(response.Created.String())
-	data.Modified = StringOrNull(response.Modified)
+	data.Modified = utils.StringOrNull(response.Modified)
 	data.ZoneId = types.StringValue(response.ZoneId.String())
 	data.OrganizationId = types.StringValue(response.OrganizationId.String())
 
 	data.AttachedNetworkId = types.StringValue(
 		string(response.AttachedNetworkId.String()),
 	)
-	data.Activated = StringOrNull(response.Activated)
-	data.Deleted = StringOrNull(response.Deleted)
+	data.Activated = utils.StringOrNull(response.Activated)
+	data.Deleted = utils.StringOrNull(response.Deleted)
 	data.Status = types.StringValue(response.Status)
 	data.Name = types.StringValue(response.Name)
 	data.Purpose = types.StringValue(response.Purpose)

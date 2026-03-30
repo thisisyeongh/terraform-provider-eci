@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"terraform-provider-eci/internal/api"
-	. "terraform-provider-eci/internal/utils"
+	"terraform-provider-eci/internal/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/int64validator"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
@@ -64,10 +64,10 @@ func resourceVirtualNetworkGetResponseToVirtualNetworkModel(
 	data.Tags = tags
 	data.Name = types.StringValue(response.Name)
 	data.Created = types.StringValue(response.Created.String())
-	data.Modified = StringOrNull(response.Modified)
+	data.Modified = utils.StringOrNull(response.Modified)
 	data.ZoneId = types.StringValue(response.ZoneId.String())
 	data.OrganizationId = types.StringValue(response.OrganizationId.String())
-	data.Deleted = StringOrNull(response.Deleted)
+	data.Deleted = utils.StringOrNull(response.Deleted)
 	data.Status = types.StringValue(string(response.Status))
 	data.NetworkCidr = types.StringValue(response.NetworkCidr)
 

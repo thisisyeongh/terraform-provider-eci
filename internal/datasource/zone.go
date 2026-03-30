@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"terraform-provider-eci/internal/api"
-	. "terraform-provider-eci/internal/utils"
+	"terraform-provider-eci/internal/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
@@ -99,7 +99,7 @@ func ZoneGetResponseToZoneModel(
 	data.Name = types.StringValue(response.Name)
 	data.RegionId = types.StringValue(response.RegionId.String())
 
-	data.SecondaryZoneId = StringOrNull(response.SecondaryZoneId)
+	data.SecondaryZoneId = utils.StringOrNull(response.SecondaryZoneId)
 
 	return diag.Diagnostics{}
 }
