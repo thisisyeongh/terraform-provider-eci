@@ -3,7 +3,7 @@
 ## Requirements
 
 - tested with [Terraform](https://www.terraform.io/downloads.html) 1.10.5.
-- [Go](https://golang.org/doc/install) v1.23 (to build the provider plugin)
+- [Go](https://golang.org/doc/install) v1.25 (to build the provider plugin)
 
 
 
@@ -11,7 +11,7 @@
 
 Prepare `golangci-lint` and `golines` as below:
 ```
-curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.64.5
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
 golangci-lint --version
 
 go install github.com/segmentio/golines@latest

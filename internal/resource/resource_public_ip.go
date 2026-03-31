@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"terraform-provider-eci/internal/api"
-	. "terraform-provider-eci/internal/utils"
+	"terraform-provider-eci/internal/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -57,19 +57,19 @@ func resourcePublicIpGetResponseToPublicIpModel(
 
 	data.Tags = tags
 	data.Created = types.StringValue(response.Created.String())
-	data.Modified = StringOrNull(response.Modified)
+	data.Modified = utils.StringOrNull(response.Modified)
 	data.ZoneId = types.StringValue(response.ZoneId.String())
 	data.OrganizationId = types.StringValue(response.OrganizationId.String())
 	data.DR = types.BoolValue(response.DR)
-	data.AttachedNetworkInterfaceId = StringOrNull(response.AttachedNetworkInterfaceId)
+	data.AttachedNetworkInterfaceId = utils.StringOrNull(response.AttachedNetworkInterfaceId)
 	data.PricingId = types.StringValue(response.PricingId.String())
 	data.PricingType = types.StringValue(response.PricingType)
 	data.PoolId = types.StringValue(response.PoolId.String())
-	data.DrPoolId = StringOrNull(response.DrPoolId)
-	data.Deleted = StringOrNull(response.Deleted)
+	data.DrPoolId = utils.StringOrNull(response.DrPoolId)
+	data.Deleted = utils.StringOrNull(response.Deleted)
 	data.Status = types.StringValue(response.Status)
 	data.Ip = types.StringValue(response.Ip)
-	data.DrIp = StringValOrNull(response.DrIp)
+	data.DrIp = utils.StringValOrNull(response.DrIp)
 
 	return diag.Diagnostics{}
 }

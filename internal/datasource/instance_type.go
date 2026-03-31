@@ -169,7 +169,12 @@ func (d *InstanceTypeDataSource) Read(
 
 	filterActivated := true
 
-	instances, err := d.client.GetInstanceTypes(config.Name.ValueStringPointer(), &filterActivated, 0, 2)
+	instances, err := d.client.GetInstanceTypes(
+		config.Name.ValueStringPointer(),
+		&filterActivated,
+		0,
+		2,
+	)
 
 	if err != nil {
 		resp.Diagnostics.AddError(

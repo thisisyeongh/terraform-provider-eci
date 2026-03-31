@@ -13,11 +13,17 @@ Block Storage
 ## Example Usage
 
 ```terraform
+data "eci_pricing" "storage_pricing" {
+  name         = "Block Storage"
+  pricing_type = "ondemand"
+}
+
 resource "eci_block_storage" "my_block_storage" {
   attached_machine_id="4f3a9eeb-962f-4f9c-9074-13c422b3d726"
   name="my-block-strage"
   dr=false
   size_gib=40
+  pricing_id="${data.eci_pricing.storage_pricing.id}"
   image_id="4f3a9eeb-962f-4f9c-9074-13c422b3d726"
   tags = {
     "created-by": "terraform"
@@ -33,6 +39,7 @@ resource "eci_block_storage" "my_block_storage" {
 - `attached_machine_id` (String) the id of the virtual machine this blocks storage will attach to
 - `dr` (Boolean) whether to enable DR support
 - `name` (String) name of the block storage
+- `pricing_id` (String) id of pricing plan for the block storage
 - `size_gib` (Number) size of the block storage (GiB)
 - `tags` (Map of String) User-defined metadata of key-value pairs
 
@@ -52,5 +59,6 @@ resource "eci_block_storage" "my_block_storage" {
 - `modified` (String) last time when the block storage is modified
 - `organization_id` (String) id of organization that the block storage belongs to
 - `prepared` (String) the time when the block storage is prepared
+- `pricing_type` (String) type of pricing plan (computed)
 - `status` (String) status of the block storage
 - `zone_id` (String) id of zone that the block storage belongs to

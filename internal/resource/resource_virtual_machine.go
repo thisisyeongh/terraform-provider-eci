@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"terraform-provider-eci/internal/api"
-	. "terraform-provider-eci/internal/utils"
+	"terraform-provider-eci/internal/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -64,7 +64,7 @@ func resourceVirtualMachineGetResponseToVirtualMachineModel(
 	data.Tags = tags
 	data.Name = types.StringValue(response.Name)
 	data.Created = types.StringValue(response.Created.String())
-	data.Modified = StringOrNull(response.Modified)
+	data.Modified = utils.StringOrNull(response.Modified)
 	data.ZoneId = types.StringValue(response.ZoneId.String())
 	data.OrganizationId = types.StringValue(response.OrganizationId.String())
 	data.InstanceTypeId = types.StringValue(response.InstanceTypeId.String())
@@ -72,8 +72,8 @@ func resourceVirtualMachineGetResponseToVirtualMachineModel(
 	data.PricingType = types.StringValue(response.PricingType)
 	data.AlwaysOn = types.BoolValue(response.AlwaysOn)
 	data.DR = types.BoolValue(response.DR)
-	data.Allocated = StringOrNull(response.Allocated)
-	data.Deleted = StringOrNull(response.Deleted)
+	data.Allocated = utils.StringOrNull(response.Allocated)
+	data.Deleted = utils.StringOrNull(response.Deleted)
 	data.Status = types.StringValue(string(response.Status))
 	data.Username = types.StringValue(response.Username)
 	data.OnInitScript = types.StringValue(response.OnInitScript)

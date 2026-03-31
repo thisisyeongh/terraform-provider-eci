@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"terraform-provider-eci/internal/api"
-	. "terraform-provider-eci/internal/utils"
+	"terraform-provider-eci/internal/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -65,16 +65,16 @@ func resourceBlockStorageSnapshotGetResponseToBlockStorageSnapshotModel(
 	}
 
 	data.Tags = tags
-	data.Modified = StringOrNull(response.Modified)
+	data.Modified = utils.StringOrNull(response.Modified)
 	data.ZoneId = types.StringValue(response.ZoneId.String())
 	data.OrganizationId = types.StringValue(response.OrganizationId.String())
 	data.BlockStorageId = types.StringValue(response.BlockStorageId.String())
-	data.ImageId = StringOrNull(response.ImageId)
+	data.ImageId = utils.StringOrNull(response.ImageId)
 	data.SizeGib = types.Int64Value(int64(response.SizeGib))
-	data.Assigned = StringOrNull(response.Assigned)
-	data.Prepared = StringOrNull(response.Prepared)
-	data.Deleting = StringOrNull(response.Deleting)
-	data.Deleted = StringOrNull(response.Deleted)
+	data.Assigned = utils.StringOrNull(response.Assigned)
+	data.Prepared = utils.StringOrNull(response.Prepared)
+	data.Deleting = utils.StringOrNull(response.Deleting)
+	data.Deleted = utils.StringOrNull(response.Deleted)
 	data.DR = types.BoolValue(response.DR)
 	data.Status = types.StringValue(string(response.Status))
 	return diag.Diagnostics{}
@@ -361,4 +361,17 @@ func (r *ResourceBlockStorageSnapshot) Delete(
 	}
 
 	tflog.Info(ctx, fmt.Sprintf("%s (block storage snapshot: %s)", successMessage, id))
+
+	_, diags := waitStatus(
+		func() (*string, error) {
+			getResponse, err := r.client.GetBlockStorageSnapshot(id)
+			if err != nil {
+				return nil, err
+			}
+			return &getResponse.Status, nil
+		},
+		[]string{"deleted"},
+		10,
+	)
+	resp.Diagnostics.Append(diags...)
 }

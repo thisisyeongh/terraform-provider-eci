@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"terraform-provider-eci/internal/api"
-	. "terraform-provider-eci/internal/utils"
+	"terraform-provider-eci/internal/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -53,13 +53,13 @@ func resourceNetworkInterfaceGetResponseToNetworkInterfaceModel(
 
 	data.Tags = tags
 	data.Created = types.StringValue(response.Created.String())
-	data.Modified = StringOrNull(response.Modified)
+	data.Modified = utils.StringOrNull(response.Modified)
 	data.ZoneId = types.StringValue(response.ZoneId.String())
 	data.OrganizationId = types.StringValue(response.OrganizationId.String())
 	data.AttachedSubnetId = types.StringValue(response.AttachedSubnetId.String())
 	data.DR = types.BoolValue(response.DR)
-	data.AttachedMachineId = StringOrNull(response.AttachedMachineId)
-	data.Deleted = StringOrNull(response.Deleted)
+	data.AttachedMachineId = utils.StringOrNull(response.AttachedMachineId)
+	data.Deleted = utils.StringOrNull(response.Deleted)
 	data.Status = types.StringValue(response.Status)
 	data.Name = types.StringValue(response.Name)
 	data.Ip = types.StringValue(response.Ip)

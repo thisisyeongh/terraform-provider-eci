@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"terraform-provider-eci/internal/api"
-	. "terraform-provider-eci/internal/utils"
+	"terraform-provider-eci/internal/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -64,7 +64,7 @@ func resourceVirtualMachineAllocationGetResponseToVirtualMachineAllocationModel(
 
 	data.Tags = tags
 	data.Created = types.StringValue(response.Created.String())
-	data.Modified = StringOrNull(response.Modified)
+	data.Modified = utils.StringOrNull(response.Modified)
 	data.ZoneId = types.StringValue(response.ZoneId.String())
 	data.OrganizationId = types.StringValue(response.OrganizationId.String())
 	data.MachineId = types.StringValue(response.MachineId.String())
@@ -76,12 +76,12 @@ func resourceVirtualMachineAllocationGetResponseToVirtualMachineAllocationModel(
 		return diags
 	}
 	data.RequestedDevices = requestedDevices
-	data.LastHeartbeat = StringOrNull(response.LastHeartbeat)
-	data.Assigned = StringOrNull(response.Assigned)
-	data.Taken = StringOrNull(response.Taken)
-	data.Started = StringOrNull(response.Started)
-	data.Terminating = StringOrNull(response.Terminating)
-	data.Terminated = StringOrNull(response.Terminated)
+	data.LastHeartbeat = utils.StringOrNull(response.LastHeartbeat)
+	data.Assigned = utils.StringOrNull(response.Assigned)
+	data.Taken = utils.StringOrNull(response.Taken)
+	data.Started = utils.StringOrNull(response.Started)
+	data.Terminating = utils.StringOrNull(response.Terminating)
+	data.Terminated = utils.StringOrNull(response.Terminated)
 	data.Status = types.StringValue(response.Status)
 
 	return diag.Diagnostics{}

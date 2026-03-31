@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"terraform-provider-eci/internal/api"
-	. "terraform-provider-eci/internal/utils"
+	"terraform-provider-eci/internal/utils"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -69,21 +69,21 @@ func resourceBlockStorageGetResponseToBlockStorageModel(
 	}
 
 	data.Tags = tags
-	data.Modified = StringOrNull(response.Modified)
+	data.Modified = utils.StringOrNull(response.Modified)
 	data.ZoneId = types.StringValue(response.ZoneId.String())
 	data.OrganizationId = types.StringValue(response.OrganizationId.String())
-	data.AttachedMachineId = StringOrNull(response.AttachedMachineId)
-	data.ImageId = StringOrNull(response.ImageId)
-	data.SnapshotId = StringOrNull(response.SnapshotId)
+	data.AttachedMachineId = utils.StringOrNull(response.AttachedMachineId)
+	data.ImageId = utils.StringOrNull(response.ImageId)
+	data.SnapshotId = utils.StringOrNull(response.SnapshotId)
 	data.SizeGib = types.Int64Value(int64(response.SizeGib))
 	data.DR = types.BoolValue(response.DR)
 	data.PricingId = types.StringValue(response.PricingId.String())
 	data.PricingType = types.StringValue(response.PricingType)
-	data.LastSyncedSnapshot = StringValOrNull(response.LastSyncedSnapshot)
-	data.Assigned = StringOrNull(response.Assigned)
-	data.Prepared = StringOrNull(response.Prepared)
-	data.Deleting = StringOrNull(response.Deleting)
-	data.Deleted = StringOrNull(response.Deleted)
+	data.LastSyncedSnapshot = utils.StringValOrNull(response.LastSyncedSnapshot)
+	data.Assigned = utils.StringOrNull(response.Assigned)
+	data.Prepared = utils.StringOrNull(response.Prepared)
+	data.Deleting = utils.StringOrNull(response.Deleting)
+	data.Deleted = utils.StringOrNull(response.Deleted)
 	data.Status = types.StringValue(string(response.Status))
 	return diag.Diagnostics{}
 }
@@ -502,4 +502,17 @@ func (r *ResourceBlockStorage) Delete(
 	}
 
 	tflog.Info(ctx, fmt.Sprintf("%s (block storage: %s)", successMessage, id))
+
+	_, diags := waitStatus(
+		func() (*string, error) {
+			getResponse, err := r.client.GetBlockStorage(id)
+			if err != nil {
+				return nil, err
+			}
+			return &getResponse.Status, nil
+		},
+		[]string{"deleted"},
+		10,
+	)
+	resp.Diagnostics.Append(diags...)
 }
